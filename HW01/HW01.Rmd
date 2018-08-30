@@ -1,0 +1,93 @@
+---
+title: "Homework 1"
+output:
+  html_notebook: default
+  html_document: default
+---
+## Problem 1
+
+### 1.1
+```{r}
+health <- read.csv("health.csv")
+head(health)
+```
+```{r}
+str(health)
+```
+
+### 1.2
+```{r}
+summary(health$sex)
+```
+
+### 1.3
+```{r}
+sum(is.na(health$height))
+```
+
+```{r}
+sum(health$height>1.875, na.rm=TRUE)
+```
+
+### 1.4
+```{r}
+levels(health$hands_eating)
+```
+
+```{r}
+health$hands_eating <- factor(health$hands_eating, levels=c("Always","Most of the time","Sometimes","Rarely","Never"))
+```
+
+## Problem 2
+### 2.1
+```{r}
+unemployment <- read.table("unemployment.txt", head=TRUE, sep="|")
+```
+
+### 2.2
+```{r}
+library(dplyr)
+countySortedByRate <- unemployment %>% filter(period == "Aug-11") %>% arrange(desc(rate)) %>% select(county,state)
+head(countySortedByRate, 3)
+```
+
+```{r}
+tail(countySortedByRate, 3)
+```
+
+### 2.3
+```{r}
+overallRate <- with(unemployment, sum(unemployed)/sum(as.numeric(civilian))*100)
+unemployment %>% filter(period == "Aug-11", state_code == "IN") %>% mutate(diff = abs(rate-overallRate)) %>% arrange(diff) %>% filter(diff == min(diff)) %>% select(county, rate, diff)
+```
+
+## Problem 3
+### 3.1
+```{r}
+microarray <- read.table("microarray.txt", head=TRUE)
+dim(microarray)
+```
+
+### 3.2
+```{r}
+bvar <- function(data, rows) {
+  rowSd <- apply(data[rows,], 1, sd)
+  as.integer(names(rowSd)[which.max(rowSd)])
+}
+bvar(microarray, c(40, 50, 60))
+```
+
+### 3.3
+```{r}
+microarray <- microarray %>% select(starts_with("LEUKEMIA"), starts_with("MELANOMA"))
+heatmap(as.matrix(microarray), margins=c(10,0), labRow=FALSE)
+invisible(dev.copy(png,"heatmap.png", width=500, height=500))
+invisible(dev.off())
+```
+### 3.4
+```{r}
+library("gplots")
+heatmap.2(as.matrix(microarray), col=greenred, breaks=c(-2.5,-1.5,-.5,.5,1.5,2.5), margins=c(10,0), labRow=FALSE, trace="none", density.info="none")
+invisible(dev.copy(png,"heatmap2.png", width=500, height=500))
+invisible(dev.off())
+```
