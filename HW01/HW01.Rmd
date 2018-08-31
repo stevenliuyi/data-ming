@@ -7,6 +7,7 @@ output:
 ## Problem 1
 
 ### 1.1
+Read `health.csv` and check basic information:
 ```{r}
 health <- read.csv("health.csv")
 head(health)
@@ -16,46 +17,55 @@ str(health)
 ```
 
 ### 1.2
+12610 observations came from `Female`, and 11805 observations came from `Male`. There are also 247 missing values for the `sex` column.
 ```{r}
 summary(health$sex)
 ```
 
 ### 1.3
+2187 missing values for the variable `height`.
 ```{r}
 sum(is.na(health$height))
 ```
 
+For those non-missing values, 29 of them are larger than 1.875.
 ```{r}
 sum(health$height>1.875, na.rm=TRUE)
 ```
 
 ### 1.4
+Levels for the variable `hands_eating`:
 ```{r}
 levels(health$hands_eating)
 ```
 
+Re-arrange the levels in the right order:
 ```{r}
 health$hands_eating <- factor(health$hands_eating, levels=c("Always","Most of the time","Sometimes","Rarely","Never"))
 ```
 
 ## Problem 2
 ### 2.1
+Read `unemployment.txt`:
 ```{r}
 unemployment <- read.table("unemployment.txt", head=TRUE, sep="|")
 ```
 
 ### 2.2
+For the month of Aug-11, Imperical (CA), Yuma (AZ) and Salinas (PR) are three counties with the highest unemployment rates.
 ```{r}
 library(dplyr)
-countySortedByRate <- unemployment %>% filter(period == "Aug-11") %>% arrange(desc(rate)) %>% select(county,state)
+countySortedByRate <- unemployment %>% filter(period == "Aug-11") %>% arrange(desc(rate)) %>% select(county,state, rate)
 head(countySortedByRate, 3)
 ```
 
+Mckenzie, Slope and Williams are three counties with the lowest unemployment rates. All of them are in North Dakota.
 ```{r}
 tail(countySortedByRate, 3)
 ```
 
 ### 2.3
+For the month of Aug-11, Whitley is the county in Indiana that has unemployment rate closest to the overall unemployment rate across the whole country.
 ```{r}
 overallRate <- with(unemployment, sum(unemployed)/sum(as.numeric(civilian))*100)
 unemployment %>% filter(period == "Aug-11", state_code == "IN") %>% mutate(diff = abs(rate-overallRate)) %>% arrange(diff) %>% filter(diff == min(diff)) %>% select(county, rate, diff)
@@ -63,28 +73,32 @@ unemployment %>% filter(period == "Aug-11", state_code == "IN") %>% mutate(diff 
 
 ## Problem 3
 ### 3.1
+Read `microarray.txt` into R, the dimension of the data frame is 6830 (genes) x 64 (cell lines).
 ```{r}
-microarray <- read.table("microarray.txt", head=TRUE)
-dim(microarray)
+dat <- read.table("microarray.txt", head=TRUE)
+dim(dat)
 ```
 
 ### 3.2
+`bvar` takes as inpute a data frame and a vector of row numbers and returns which of these rows has the largest standard deviation.
 ```{r}
 bvar <- function(data, rows) {
   rowSd <- apply(data[rows,], 1, sd)
   as.integer(names(rowSd)[which.max(rowSd)])
 }
-bvar(microarray, c(40, 50, 60))
+bvar(dat, c(40, 50, 60))
 ```
 
 ### 3.3
+Plot heatmap of samples with label LEUKEMIA or MELANOMA.
 ```{r}
-microarray <- microarray %>% select(starts_with("LEUKEMIA"), starts_with("MELANOMA"))
-heatmap(t(as.matrix(microarray)), labCol=FALSE, scale="none")
+dat <- dat %>% select(starts_with("LEUKEMIA"), starts_with("MELANOMA"))
+heatmap(t(as.matrix(dat)), labCol=FALSE, scale="none")
 ```
 
 ### 3.4
+Replot the heatmap in red-green color system.
 ```{r}
 library("gplots")
-heatmap.2(t(as.matrix(microarray)), col=greenred, breaks=-2.5:2.5, labCol=FALSE, margins=c(0,10), scale="none", trace="none", density.info="none")
+heatmap.2(t(as.matrix(dat)), col=greenred, breaks=-2.5:2.5, labCol=FALSE, margins=c(0,10), scale="none", trace="none", density.info="none")
 ```
