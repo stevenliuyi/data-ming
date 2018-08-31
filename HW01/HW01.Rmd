@@ -1,8 +1,8 @@
 ---
 title: "Homework 1"
 output:
-  html_notebook: default
   html_document: default
+  html_notebook: default
 ---
 ## Problem 1
 
@@ -80,14 +80,11 @@ bvar(microarray, c(40, 50, 60))
 ### 3.3
 ```{r}
 microarray <- microarray %>% select(starts_with("LEUKEMIA"), starts_with("MELANOMA"))
-heatmap(as.matrix(microarray), margins=c(10,0), labRow=FALSE)
-invisible(dev.copy(png,"heatmap.png", width=500, height=500))
-invisible(dev.off())
+heatmap(t(as.matrix(microarray)), labCol=FALSE, scale="none")
 ```
+
 ### 3.4
 ```{r}
 library("gplots")
-heatmap.2(as.matrix(microarray), col=greenred, breaks=c(-2.5,-1.5,-.5,.5,1.5,2.5), margins=c(10,0), labRow=FALSE, trace="none", density.info="none")
-invisible(dev.copy(png,"heatmap2.png", width=500, height=500))
-invisible(dev.off())
+heatmap.2(t(as.matrix(microarray)), col=greenred, breaks=-2.5:2.5, labCol=FALSE, margins=c(0,10), scale="none", trace="none", density.info="none")
 ```
