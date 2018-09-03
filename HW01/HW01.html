@@ -183,7 +183,10 @@ head(health)</code></pre>
 <pre><code>## [1] &quot;Always&quot;           &quot;Most of the time&quot; &quot;Never&quot;           
 ## [4] &quot;Rarely&quot;           &quot;Sometimes&quot;</code></pre>
 <p>Re-arrange the levels in the right order:</p>
-<pre class="r"><code>health$hands_eating &lt;- factor(health$hands_eating, levels=c(&quot;Always&quot;,&quot;Most of the time&quot;,&quot;Sometimes&quot;,&quot;Rarely&quot;,&quot;Never&quot;))</code></pre>
+<pre class="r"><code>health$hands_eating &lt;- factor(health$hands_eating, levels=c(&quot;Always&quot;,&quot;Most of the time&quot;,&quot;Sometimes&quot;,&quot;Rarely&quot;,&quot;Never&quot;))
+levels(health$hands_eating)</code></pre>
+<pre><code>## [1] &quot;Always&quot;           &quot;Most of the time&quot; &quot;Sometimes&quot;       
+## [4] &quot;Rarely&quot;           &quot;Never&quot;</code></pre>
 </div>
 </div>
 <div id="problem-2" class="section level2">
@@ -222,7 +225,7 @@ head(countySortedByRate, 3)</code></pre>
 <h3>2.3</h3>
 <p>For the month of Aug-11, Whitley is the county in Indiana that has unemployment rate closest to the overall unemployment rate across the whole country.</p>
 <pre class="r"><code>overallRate &lt;- with(unemployment, sum(unemployed)/sum(as.numeric(civilian))*100)
-unemployment %&gt;% filter(period == &quot;Aug-11&quot;, state_code == &quot;IN&quot;) %&gt;% mutate(diff = abs(rate-overallRate)) %&gt;% arrange(diff) %&gt;% filter(diff == min(diff)) %&gt;% select(county, rate, diff)</code></pre>
+unemployment %&gt;% filter(period == &quot;Aug-11&quot;, state_code == &quot;IN&quot;) %&gt;% mutate(diff = abs(rate-overallRate)) %&gt;% filter(diff == min(diff)) %&gt;% select(county, rate, diff)</code></pre>
 <pre><code>##    county rate       diff
 ## 1 whitley  8.6 0.02852228</code></pre>
 </div>
@@ -241,7 +244,7 @@ dim(dat)</code></pre>
 <p><code>bvar</code> takes as inpute a data frame and a vector of row numbers and returns which of these rows has the largest standard deviation.</p>
 <pre class="r"><code>bvar &lt;- function(data, rows) {
   rowSd &lt;- apply(data[rows,], 1, sd)
-  as.integer(names(rowSd)[which.max(rowSd)])
+  rows[which.max(rowSd)]
 }
 bvar(dat, c(40, 50, 60))</code></pre>
 <pre><code>## [1] 50</code></pre>
