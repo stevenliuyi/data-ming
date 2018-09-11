@@ -1,0 +1,133 @@
+---
+title: "Homework 2"
+output: html_notebook
+---
+
+## Problem 1
+
+### 1.1
+```{r}
+dat <- list(train = read.table("zip.train"), test = read.table("zip.test"))
+dat$train <- dat$train[dat$train[,1] %in% c(1,3,5),]
+dat$test <- dat$test[dat$test[,1] %in% c(1,3,5),]
+```
+
+Check the dimensions:
+```{r}
+dim(dat$train)
+dim(dat$test)
+```
+
+### 1.2
+Factorize the first column:
+```{r}
+dat$train[,1] <- factor(dat$train[,1])
+dat$test[,1] <- factor(dat$test[,1])
+```
+
+Check the levels:
+```{r}
+levels(dat$train[,1])
+levels(dat$test[,1])
+```
+
+Save the data:
+```{r}
+saveRDS(dat, file="zip.RData")
+```
+
+### 1.3
+Convert a row into an image:
+```{r}
+digitMatrix <- function(rowIdx, df="train") {
+   mat <- matrix(as.numeric(dat[[df]][rowIdx, -1]), nrow=16, ncol=16)
+}
+```
+
+Find indices of specific digit:
+```{r}
+idx <- function(digit, df="train") {
+  which(dat[[df]][,1] == digit)
+}
+```
+
+First four 1's:
+```{r}
+images <- lapply(idx(1)[1:4], function(i) image(digitMatrix(i), axes=F, asp=1))
+```
+
+First four 3's:
+```{r}
+images <- lapply(idx(3)[1:4], function(i) image(digitMatrix(i), axes=F, asp=1))
+```
+First four 5's:
+```{r}
+images <- lapply(idx(5)[1:4], function(i) image(digitMatrix(i), axes=F, asp=1))
+```
+
+### 1.4
+Show digit in the right direction and in grayscale:
+```{r}
+showDigit <- function(mat) {
+  image(-mat[, ncol(mat):1], axes=F, asp=1, col=grey(seq(0,1,length=256)))
+}
+```
+
+First four 1's:
+```{r}
+images <- lapply(idx(1)[1:4], function(i) showDigit(digitMatrix(i)))
+```
+
+First four 3's:
+```{r}
+images <- lapply(idx(3)[1:4], function(i) showDigit(digitMatrix(i)))
+```
+
+First four 5's:
+```{r}
+images <- lapply(idx(5)[1:4], function(i) showDigit(digitMatrix(i)))
+```
+
+## Problem 3
+### 3.1
+```{r}
+library(dplyr)
+dat <- read.table("../HW01/microarray.txt", head=TRUE)
+dat <- dat %>% select(starts_with("LEUKEMIA"), starts_with("MELANOMA"))
+```
+
+Do PCA based on covariance:
+```{r}
+dat.pca <-prcomp(t(as.matrix(dat)), scale.=F)
+```
+
+### 3.2
+Plot barplot of the eigenvalues:
+```{r}
+barplot(dat.pca$sdev^2)
+```
+Proportion of variances kept in the first n principal components:
+```{r}
+cumsum(dat.pca$sdev^2) / sum(dat.pca$sdev^2)
+```
+
+### 3.3
+Three genes that contribute most to the first principal component positively:
+```{r}
+pc1 <- dat.pca$rotation[,1]
+which(pc1 >= sort(pc1, decreasing=T)[3])
+```
+
+Three genes that contribute most to the first principal component negatively:
+```{r}
+which(pc1 <= sort(pc1, decreasing=F)[3])
+```
+
+### 3.4
+Plot projection of the datset on the first two principal components. The samples are well-separated.
+```{r}
+library(ggplot2)
+dat2 <- data.frame(dat.pca$x[,1:2])
+dat2$class <- sapply(rownames(dat2), function(c) gsub("\\.\\d", "", c))
+ggplot(dat2, aes(PC1, PC2, color=class)) + geom_point()
+```
