@@ -1,11 +1,14 @@
 ---
 title: "Homework 2"
-output: html_notebook
+output:
+  html_document: default
+  html_notebook: default
 ---
 
 ## Problem 1
 
 ### 1.1
+Read file `zip.train` (training data) and `zip.test` (test data) into R:
 ```{r}
 dat <- list(train = read.table("zip.train"), test = read.table("zip.test"))
 dat$train <- dat$train[dat$train[,1] %in% c(1,3,5),]
@@ -39,8 +42,8 @@ saveRDS(dat, file="zip.RData")
 ### 1.3
 Convert a row into an image:
 ```{r}
-digitMatrix <- function(rowIdx, df="train") {
-   mat <- matrix(as.numeric(dat[[df]][rowIdx, -1]), nrow=16, ncol=16)
+digitMatrix <- function(rowIdx) {
+   mat <- matrix(as.numeric(dat$train[rowIdx, -1]), nrow=16, ncol=16)
 }
 ```
 
@@ -90,6 +93,7 @@ images <- lapply(idx(5)[1:4], function(i) showDigit(digitMatrix(i)))
 
 ## Problem 3
 ### 3.1
+Read the microarray dataset:
 ```{r}
 library(dplyr)
 dat <- read.table("../HW01/microarray.txt", head=TRUE)
@@ -106,6 +110,9 @@ Plot barplot of the eigenvalues:
 ```{r}
 barplot(dat.pca$sdev^2)
 ```
+
+Here we could keep only one pricincipal component since the bar plot tends to level off (an "elbow" is shown) after the first component.
+
 Proportion of variances kept in the first n principal components:
 ```{r}
 cumsum(dat.pca$sdev^2) / sum(dat.pca$sdev^2)
@@ -127,7 +134,88 @@ which(pc1 <= sort(pc1, decreasing=F)[3])
 Plot projection of the datset on the first two principal components. The samples are well-separated.
 ```{r}
 library(ggplot2)
-dat2 <- data.frame(dat.pca$x[,1:2])
-dat2$class <- sapply(rownames(dat2), function(c) gsub("\\.\\d", "", c))
-ggplot(dat2, aes(PC1, PC2, color=class)) + geom_point()
+ggplot(as.data.frame(dat.pca$x[,1:2]), aes(PC1, PC2, color=sapply(names(dat), function(c) gsub("\\.\\d", "", c)))) +
+  geom_point() + coord_fixed() + guides(color=guide_legend(title="class"))
 ```
+
+
+## Problem 4
+### 4.1
+Read the data:
+```{r}
+dat <- readRDS(file="zip.RData")
+```
+
+Do PCA based on covariance:
+```{r}
+dat.pca <-prcomp(as.matrix(dat$train[,-1]), scale.=F)
+```
+
+### 4.2
+Plot projection of the datset on the first two principal components. The 1's are well-separated in this space. However, 3's and 5's are only partially separated.
+```{r}
+ggplot(as.data.frame(dat.pca$x[,1:2]), aes(PC1, PC2, color=dat$train[,1])) +
+  geom_point() + coord_fixed() + guides(color=guide_legend(title="digit"))
+```
+
+### 4.3
+```{r}
+images <- lapply(1:4, function(i) showDigit(matrix(dat.pca$rotation[,i], nrow=16, ncol=16)))
+```
+
+### 4.4
+We see that the first principal component direction well-distinguished 1's (light colors in the figure), which separated 1's from 3's and 5's. And then the second principal component was used to distinguish 5's and 3's (light colors for 5, dark colors for 3).
+
+## Problem 5
+### 5.1
+
+First verify the kernel PCA with linear kernel is the same as linear PCA:
+```{r}
+library(kernlab)
+dat.kpca <- kpca(~., dat$train[-1], kernel="vanilladot", kpar=list(), features=2)
+ggplot(as.data.frame(rotated(dat.kpca)), aes(V1, V2, color=dat$train[,1])) +
+  geom_point() + coord_fixed() + guides(color=guide_legend(title="digit"))
+```
+
+Use a radial basis kernel with sigma equal to 0.05:
+```{r}
+dat.kpca <- kpca(~., dat$train[-1], kernel="rbfdot", kpar=list(sigma=0.05), features=2)
+ggplot(as.data.frame(rotated(dat.kpca)), aes(V1, V2, color=dat$train[,1])) +
+  geom_point() + coord_fixed() + guides(color=guide_legend(title="digit"))
+```
+
+The digits are not well-separated in the 2D space.
+
+### 5.2
+Try RBF kernels (`rbfdot`) with `sigma` varying from 2^-12 to 2^12:
+```{r}
+library(gridExtra)
+sigmas <- 2^(-12:12)
+p <- list()
+for(i in 1:length(sigmas)) {
+    dat.kpca <- kpca(~., dat$train[-1], kernel="rbfdot", kpar=list(sigma=sigmas[i]), features=2)
+    p[[i]] <- ggplot(as.data.frame(rotated(dat.kpca)), aes(V1, V2, color=dat$train[,1])) +
+      geom_point() + coord_fixed() + guides(color=guide_legend(title="digit")) +
+      ggtitle(paste('sigma =', format(sigmas[i], scientific=T, digits=4))) +
+      theme(legend.position="none", plot.title=element_text(size=8),
+            axis.title=element_blank(), axis.text=element_blank(), axis.ticks=element_blank())
+}
+do.call(grid.arrange, p)
+```
+
+Try polynomial kernels (`polydot`) with `offset` varying from 2^-12 to 2^12 (`degree` is 2 and `scale` is 1):
+```{r}
+offsets <- 2^(-12:12)
+p <- list()
+for(i in 1:length(offsets)) {
+    dat.kpca <- kpca(~., dat$train[-1], kernel="polydot", kpar=list(degree=2, scale=1, offset=offsets[i]), features=2)
+    p[[i]] <- ggplot(as.data.frame(rotated(dat.kpca)), aes(V1, V2, color=dat$train[,1])) +
+      geom_point() + coord_fixed() + guides(color=guide_legend(title="digit")) +
+      ggtitle(paste('offset =', format(offsets[i], scientific=T, digits=4))) +
+      theme(legend.position="none", plot.title=element_text(size=8),
+            axis.title=element_blank(), axis.text=element_blank(), axis.ticks=element_blank())
+}
+do.call(grid.arrange, p)
+```
+
+We cannot see significant improvement of the kernel PCA results comparing with the linear PCA.
