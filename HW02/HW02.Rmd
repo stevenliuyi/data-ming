@@ -218,4 +218,26 @@ for(i in 1:length(offsets)) {
 do.call(grid.arrange, p)
 ```
 
-We cannot see significant improvement of the kernel PCA results comparing with the linear PCA.
+We cannot see significant improvement of the kernel PCA results comparing with the linear PCA. However, we could use other principal components, which may store more classification information. Here we try RBF kernel as before, but project the data points onto the space spanned by the first and the third principal components.
+
+```{r}
+sigmas <- 2^(-12:12)
+p <- list()
+for(i in 1:length(sigmas)) {
+    dat.kpca <- kpca(~., dat$train[-1], kernel="rbfdot", kpar=list(sigma=sigmas[i]), features=3)
+    p[[i]] <- ggplot(as.data.frame(rotated(dat.kpca)), aes(V1, V3, color=dat$train[,1])) +
+      geom_point() + coord_fixed() + guides(color=guide_legend(title="digit")) +
+      ggtitle(paste('sigma =', format(sigmas[i], scientific=T, digits=4))) +
+      theme(legend.position="none", plot.title=element_text(size=8),
+            axis.title=element_blank(), axis.text=element_blank(), axis.ticks=element_blank())
+}
+do.call(grid.arrange, p)
+```
+
+It seems that `sigma=0.01` is a good choice to separate the digits.
+
+```{r}
+dat.kpca <- kpca(~., dat$train[-1], kernel="rbfdot", kpar=list(sigma=0.01), features=3)
+ggplot(as.data.frame(rotated(dat.kpca)), aes(V1, V3, color=dat$train[,1])) +
+  geom_point() + coord_fixed() + guides(color=guide_legend(title="digit"))
+```
