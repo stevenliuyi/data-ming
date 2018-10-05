@@ -1,0 +1,296 @@
+---
+title: "Homework 3"
+output:
+  html_document:
+    df_print: paged
+---
+
+## Problem 1
+
+### 1.1
+
+Read the training data and the pre-calculated tangent distance matrix:
+```{r}
+load("zip.RData")
+load("zip.dist.RData")
+```
+
+Perform MDS with tangent distance to reduce the original data to a 2D space:
+```{r}
+library(MASS)
+dat.mds <- isoMDS(zip.dist, k=2)
+```
+
+```{r}
+library(ggplot2)
+ggplot(as.data.frame(dat.mds$points), aes(V1, V2, color=dat$train[,1])) +
+  geom_point() + coord_fixed() + labs(color="digit")
+```
+
+The digits are well-separated, better than PCA (same as MDS with Euclidean distance).
+
+## Problem 2
+
+### 2.1
+
+Subsample 1000 digits for Isomap.
+```{r}
+set.seed(10)
+ind <- sample(1:nrow(dat$train), 1000)
+x <- as.matrix(dat$train[ind, -1])
+y <- dat$train[ind, 1]
+```
+
+Perform Isomap with `k`=5 to find a 2D embedding:
+```{r}
+library(RDRToolbox)
+dat.isomap <- Isomap(data=x, dims=2, k=5)
+```
+
+```{r}
+ggplot(as.data.frame(dat.isomap$dim2), aes(V1, V2, color=y)) +
+  geom_point() + coord_fixed() + labs(color="digit")
+```
+
+### 2.2
+
+Try different parameter values (`k`) for Isomap:
+```{r}
+k.vals <- c(2,3,5,10,25,50)
+dat.isomap <- list()
+for (i in 1:length(k.vals)) {
+  dat.isomap[[i]] <- Isomap(data=x, dims=2, k=k.vals[i])$dim2
+}
+```
+
+```{r}
+library(gridExtra)
+p <- list()
+for(i in 1:length(k.vals)) {
+    p[[i]] <- ggplot(as.data.frame(dat.isomap[[i]]), aes(V1, V2, color=y)) +
+      geom_point(size=.1) + coord_fixed() + guides(color=guide_legend(title="digit")) +
+      ggtitle(paste('k =', k.vals[i])) +
+      theme(legend.position="none", plot.title=element_text(size=10), axis.text.x=element_text(size=8),
+            axis.text.y=element_text(size=8), axis.title=element_blank())
+}
+do.call(grid.arrange, c(p, ncol=3))
+```
+
+The results are sensitive to `k`.
+
+## Problem 3
+
+### 3.1
+
+Apply tSNE with `perplexity` = 25 to find a 2D embedding of digits data:
+```{r}
+library(Rtsne)
+set.seed(10)
+dat.tsne <- Rtsne(dat$train[,-1], dims=2, perplexity=25, verbose=T)
+```
+
+```{r}
+ggplot(as.data.frame(dat.tsne$Y), aes(V1, V2, color=dat$train[,1])) +
+  geom_point() + coord_fixed() + labs(color="digit")
+```
+
+### 3.2
+
+Try different `perplexity` values:
+```{r}
+prep.vals <- c(2,5,10,25,50,100)
+calc.tsne <- function(seed) {
+  dat.tsne <- list()
+  set.seed(seed)
+  for (i in 1:length(prep.vals)) {
+    dat.tsne[[i]] <- Rtsne(dat$train[,-1], dims=2, perplexity=prep.vals[i])$Y
+  }
+  dat.tsne
+}
+dat.tsne <- calc.tsne(seed=10)
+```
+
+```{r}
+plot.tsne <- function() {
+  p <- list()
+  for(i in 1:length(prep.vals)) {
+    p[[i]] <- ggplot(as.data.frame(dat.tsne[[i]]), aes(V1, V2, color=dat$train[,1])) +
+      geom_point(size=.1) + coord_fixed() + guides(color=guide_legend(title="digit")) +
+      ggtitle(paste('preplexity =', prep.vals[i])) +
+      theme(legend.position="none", plot.title=element_text(size=10), axis.text.x=element_text(size=8),
+            axis.text.y=element_text(size=8), axis.title=element_blank())
+  }
+  do.call(grid.arrange, c(p, ncol=3)) 
+}
+plot.tsne()
+```
+
+The results are sensitive to perplexity.
+
+### 3.3
+
+Use different seeds, and the results are different since the global optimum is not guaranteed to be found.
+```{r}
+dat.tsne <- calc.tsne(seed=100)
+plot.tsne()
+```
+
+```{r}
+dat.tsne <- calc.tsne(seed=1000)
+plot.tsne()
+```
+
+## Problem 4
+
+### 4.1
+
+Apply KNN with one nearest neighbor to the test data:
+```{r}
+library(class)
+y.test.knn <- knn(dat$train[,-1], dat$test[,-1], dat$train[,1], k=1, prob=F)
+```
+
+### 4.2
+
+Confusion matrix for the test data:
+```{r}
+table(y.test.knn, dat$test[,1])
+```
+
+Misclassification rate for the test data:
+```{r}
+mean(y.test.knn != dat$test[,1])
+```
+
+### 4.3
+
+Apply KNN with different `k` values (only include odd values since there would be much more ties when `k` is even):
+```{r}
+set.seed(10)
+k.vals <- seq(1, 21, by=2)
+misrates <- sapply(k.vals, function(k) mean(knn(dat$train[,-1],dat$test[,-1],dat$train[,1],k=k,prob=F) != dat$test[,1]))
+```
+
+Plot the error rate against `k`:
+```{r}
+qplot(k.vals, misrates, geom="line") + labs(x="k", y="error rate")
+```
+
+`k` = 1, 5 and 7 all yield same best result.
+
+### 4.4
+Function for plotting the digit data as an image:
+```{r}
+conv.image <- function(vec)
+{
+mat <- matrix(as.numeric(vec), nrow=16, ncol=16)
+mat <- -mat[, 16 : 1]
+par(mar=c(0, 0, 0, 0))
+image(mat, col=gray(seq(0, 1, 0.01)), xaxt='n', yaxt='n')
+}
+```
+
+Here are digits that are actually 3's but are misclassified into 5's (`k`=1). Only the first one is plotted here, and the rest are saved into pdf files.
+```{r}
+mis.three <- intersect(which(y.test.knn==5), which(dat$test[,1]==3))
+conv.image(dat$test[mis.three[1], -1])
+
+for (i in 1:length(mis.three)) {
+  pdf(paste0('mis.three.knn.', i, '.pdf'))
+  conv.image(dat$test[mis.three[i], -1])
+  dev.off()
+}
+```
+
+Digits that are actually 5's but are misclassified into 3's:
+```{r}
+mis.five <- intersect(which(y.test.knn==3), which(dat$test[,1]==5))
+conv.image(dat$test[mis.five[1], -1])
+
+for (i in 1:length(mis.five)) {
+  pdf(paste0('mis.five.knn.', i, '.pdf'))
+  conv.image(dat$test[mis.five[i], -1])
+  dev.off()
+}
+```
+
+## Problem 5
+
+### 5.1
+
+The QDA classifier stopped with error:
+```{r error=T}
+dat.qda <- qda(V1 ~ ., data=dat$train)
+```
+
+### 5.2
+
+Apply the LDA classifier and test it on the test data:
+```{r}
+dat.lda <- lda(V1 ~ ., data=dat$train)
+y.test.lda <- predict(dat.lda, dat$test)$class
+```
+
+Confusion matrix for the test data:
+```{r}
+table(y.test.lda, dat$test[,1])
+```
+
+Misclassification rate for the test data:
+```{r}
+mean(y.test.lda != dat$test[,1])
+```
+
+### 5.3
+
+Digits that are actually 3's but are misclassified into 5's:
+```{r}
+mis.three <- intersect(which(y.test.lda==5), which(dat$test[,1]==3))
+conv.image(dat$test[mis.three[1], -1])
+
+for (i in 1:length(mis.three)) {
+  pdf(paste0('mis.three.lda.', i, '.pdf'))
+  conv.image(dat$test[mis.three[i], -1])
+  dev.off()
+}
+```
+
+Digits that are actually 5's but are misclassified into 3's:
+```{r}
+mis.five <- intersect(which(y.test.lda==3), which(dat$test[,1]==5))
+conv.image(dat$test[mis.five[1], -1])
+
+for (i in 1:length(mis.five)) {
+  pdf(paste0('mis.five.lda.', i, '.pdf'))
+  conv.image(dat$test[mis.five[i], -1])
+  dev.off()
+}
+```
+
+### 5.4
+
+Apply the High-Dimensional Regularized Discriminant Analysis, and use the `train` function in the `caret` package to tune the parameters. There are 3 tunable hyperparameters in this method: `lambda` (pooling parameter, which shifts the covariance-matrix towards pooled covariance or separate covariance), `gamma` (shrinkage parameter, which shifts the covriance-matrix towards/away from diagonal matrix), `shrinkage_type` (the type of covariance-matrix shrinkage, `ridge` or `convex`).
+
+```{r}
+library(caret)
+
+set.seed(1234)
+train.control <- trainControl(method="repeatedcv", number=5, repeats=5, search="random")
+dat.hdrda <- train(V1 ~ ., data=dat$train, method="hdrda", trControl=train.control)
+y.test.hdrda <- predict(dat.hdrda, dat$test)
+```
+
+The results of the tuning process:
+```{r}
+dat.hdrda
+```
+
+Confusion matrix for the test data:
+```{r}
+table(y.test.hdrda, dat$test[,1])
+```
+
+Misclassification rate for the test data:
+```{r}
+mean(y.test.hdrda != dat$test[,1])
+```
