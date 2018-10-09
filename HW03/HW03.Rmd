@@ -1,8 +1,8 @@
 ---
 title: "Homework 3"
 output:
-  html_document:
-    df_print: paged
+  html_document: default
+  html_notebook: default
 ---
 
 ## Problem 1
@@ -27,7 +27,7 @@ ggplot(as.data.frame(dat.mds$points), aes(V1, V2, color=dat$train[,1])) +
   geom_point() + coord_fixed() + labs(color="digit")
 ```
 
-The digits are well-separated, better than PCA (same as MDS with Euclidean distance).
+The digits are well-separated, better than PCA (same as MDS with Euclidean distance). [This paper](https://web.stanford.edu/~hastie/Papers/tangent.pdf) explains why tangent distance is better than Euclidean distance in this case.
 
 ## Problem 2
 
@@ -68,8 +68,8 @@ library(gridExtra)
 p <- list()
 for(i in 1:length(k.vals)) {
     p[[i]] <- ggplot(as.data.frame(dat.isomap[[i]]), aes(V1, V2, color=y)) +
-      geom_point(size=.1) + coord_fixed() + guides(color=guide_legend(title="digit")) +
-      ggtitle(paste('k =', k.vals[i])) +
+      geom_point(size=.1) + coord_fixed() +
+      labs(color="digit") + ggtitle(paste('k =', k.vals[i])) +
       theme(legend.position="none", plot.title=element_text(size=10), axis.text.x=element_text(size=8),
             axis.text.y=element_text(size=8), axis.title=element_blank())
 }
@@ -101,8 +101,8 @@ Try different `perplexity` values:
 prep.vals <- c(2,5,10,25,50,100)
 calc.tsne <- function(seed) {
   dat.tsne <- list()
-  set.seed(seed)
   for (i in 1:length(prep.vals)) {
+    set.seed(seed)
     dat.tsne[[i]] <- Rtsne(dat$train[,-1], dims=2, perplexity=prep.vals[i])$Y
   }
   dat.tsne
@@ -115,8 +115,8 @@ plot.tsne <- function() {
   p <- list()
   for(i in 1:length(prep.vals)) {
     p[[i]] <- ggplot(as.data.frame(dat.tsne[[i]]), aes(V1, V2, color=dat$train[,1])) +
-      geom_point(size=.1) + coord_fixed() + guides(color=guide_legend(title="digit")) +
-      ggtitle(paste('preplexity =', prep.vals[i])) +
+      geom_point(size=.1) + coord_fixed() +
+      labs(color="digit") + ggtitle(paste('preplexity =', prep.vals[i])) +
       theme(legend.position="none", plot.title=element_text(size=10), axis.text.x=element_text(size=8),
             axis.text.y=element_text(size=8), axis.title=element_blank())
   }
@@ -167,8 +167,8 @@ mean(y.test.knn != dat$test[,1])
 Apply KNN with different `k` values (only include odd values since there would be much more ties when `k` is even):
 ```{r}
 set.seed(10)
-k.vals <- seq(1, 21, by=2)
-misrates <- sapply(k.vals, function(k) mean(knn(dat$train[,-1],dat$test[,-1],dat$train[,1],k=k,prob=F) != dat$test[,1]))
+k.vals <- seq(1, 51, by=2)
+misrates <- sapply(k.vals, function(k) mean(knn(dat$train[,-1], dat$test[,-1], dat$train[,1], k=k, prob=F) != dat$test[,1]))
 ```
 
 Plot the error rate against `k`:
