@@ -37,3 +37,4 @@ rsconnect/
 
 *.sw*
 *.pdf
+.DS_Store

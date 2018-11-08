@@ -1,0 +1,137 @@
+---
+title: "Homework 4"
+output:
+  html_document: default
+  html_notebook: default
+---
+
+## Problem 2
+
+### 2.2
+
+Read the training data and test data:
+```{r}
+load("../HW03/zip.RData")
+```
+
+Apply the Naive Bayes classifier:
+```{r}
+library(e1071)
+dat.nb <- naiveBayes(V1 ~ ., data=dat$train)
+y.test.nb <- predict(dat.nb, newdata=dat$test)
+```
+
+Confusion matrix:
+```{r}
+table(y.test.nb, dat$test[,1])
+```
+
+Misclassification rate:
+```{r}
+mean(y.test.nb != dat$test[,1])
+```
+
+## Problem 3
+
+### 3.1
+
+5-fold cross validation:
+```{r}
+generate_indices <- function(n, k, seed=10) {
+  set.seed(seed)
+  ind <- rep(0, n)
+  a <- split(sample(1:n), 1:k)
+  for (j in 1:k) { ind[a[[j]]] <- j }
+  ind
+}
+
+cv.5fold <- function(data, predictor, seed=10) {
+  ind <- generate_indices(nrow(data), 5, seed)
+  errors <- sapply(1:5, function(j) {
+    set.seed(seed)
+    y.hat <- predictor(data[ind != j,], data[ind == j,])
+    mean(y.hat != data[ind == j,1])
+  })
+  mean(errors)
+}
+```
+
+```{r}
+library(class)
+knn.predictor <- function(train, test, k) {
+  knn(train[,-1], test[,-1], train[,1], k=k, prob=F)
+}
+```
+
+Calculate training error, 5-fold CV error and test error for kNN classifier with different `k` values:
+```{r warning=FALSE}
+train.errors <- rep(0, 15)
+cv.errors <- rep(0, 15)
+test.errors <- rep(0, 15)
+for (k in 1:15) {
+  predictor <- function(train, test) { knn.predictor(train, test, k) }
+  cv.errors[k] <- cv.5fold(dat$train, predictor)
+  set.seed(10)
+  train.errors[k] <- mean(knn(dat$train[,-1], dat$train[,-1], dat$train[,1], k=k, prob=F) != dat$train[,1])
+  test.errors[k] <- mean(knn(dat$train[,-1], dat$test[,-1], dat$train[,1], k=k, prob=F) != dat$test[,1])
+  cat("k =", k, ", train error =", train.errors[k], ", cv error =", cv.errors[k], ", test error =", test.errors[k], "\n")
+}
+```
+
+```{r}
+library(ggplot2)
+library(reshape2)
+errors <- data.frame(k=1:15, train=train.errors, cv=cv.errors, test=test.errors)
+errors <- melt(errors, id="k")
+ggplot(errors) + geom_line(aes(k, value, color=variable))
+```
+
+Alternatively, use the `caret` package to train kNN classifier:
+```{r}
+library(caret)
+set.seed(1234)
+train.control <- trainControl(method="repeatedcv", number=5, repeats=1)
+dat.knn <- train(V1 ~ ., data=dat$train, method="knn", trControl=train.control, tuneGrid=expand.grid(k=1:15))
+dat.knn
+```
+
+
+### 3.2
+`k`=1 performs the best based on the training error:
+```{r}
+which(train.errors == min(train.errors))
+```
+
+`k`=1, 5 and 7 perform the best based on the test error:
+```{r}
+which(test.errors == min(test.errors))
+```
+
+`k`=3 performs the best based on the CV error:
+```{r}
+which(cv.errors == min(cv.errors))
+```
+
+### 3.3
+
+Run CV ten times with different random seeds for `k`=4 (which yields the lowest CV error above):
+```{r warning=FALSE}
+cv.errors2 <- rep(0, 10)
+for (seed in 1:10) {
+  predictor <- function(train, test) { knn.predictor(train, test, 4) }
+  cv.errors2[seed] <- cv.5fold(dat$train, predictor, seed)
+}
+cv.errors2
+```
+
+The CV errors are different when using different random seeds.
+
+### 3.4
+
+The function to generate equal sample sizes for each fold was already implemented above in 3.1. Check with `n`=12 (12 samples) and `k`=5 (5 folds):
+```{r warning=FALSE}
+for (seed in 1:5) {
+  ind <- generate_indices(12, 5, seed)
+  print(ind)
+}
+```
