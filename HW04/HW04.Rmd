@@ -83,7 +83,7 @@ library(ggplot2)
 library(reshape2)
 errors <- data.frame(k=1:15, train=train.errors, cv=cv.errors, test=test.errors)
 errors <- melt(errors, id="k")
-ggplot(errors) + geom_line(aes(k, value, color=variable))
+ggplot(errors) + geom_line(aes(k, value, color=variable)) + labs(y="error", color="error type")
 ```
 
 Alternatively, use the `caret` package to train kNN classifier:
@@ -118,6 +118,7 @@ Run CV ten times with different random seeds for `k`=4 (which yields the lowest 
 ```{r warning=FALSE}
 cv.errors2 <- rep(0, 10)
 for (seed in 1:10) {
+  set.seed(seed)
   predictor <- function(train, test) { knn.predictor(train, test, 4) }
   cv.errors2[seed] <- cv.5fold(dat$train, predictor, seed)
 }
@@ -135,3 +136,274 @@ for (seed in 1:5) {
   print(ind)
 }
 ```
+
+## Problem 4
+
+### 4.1
+
+Number of support vectors for different values of the cost:
+```{r}
+nSV <- c()
+costs <- 10^(-5:5)
+for (cost in costs) {
+  data.svm <- svm(V1 ~ ., data=dat$train, cost=cost, scale=F)
+  nSV <- c(nSV, data.svm$tot.nSV)
+}
+nSV
+```
+
+Plot the number of support vectors vs. C:
+```{r}
+ggplot(data=data.frame(costs,nSV), aes(costs, nSV)) +
+  geom_line() + scale_x_log10() + labs(x="cost", y="number of support vectors")
+```
+
+### 4.2
+
+Calculate 5-fold CV errors for different cost values:
+```{r warning=FALSE}
+cv.errors <- c()
+for (cost in costs) {
+  predictor <- function(train, test) {
+    data.svm <- svm(V1 ~ ., data=train, cost=cost, scale=F)
+    predict(data.svm, test)
+  }
+  cv.error <- cv.5fold(dat$train, predictor, seed=10)
+  cv.errors <- c(cv.errors, cv.error)
+  cat("cost =", cost, ", cv error =", cv.error, "\n")
+}
+```
+
+The following cost values have the lowest CV error:
+```{r}
+costs[which(cv.errors == min(cv.errors))]
+```
+
+### 4.3
+Here we use cost = 10:
+```{r}
+data.svm <- svm(V1 ~ ., data=dat$train, cost=10, scale=F)
+y.test.svm <- predict(data.svm, dat$test)
+mean(y.test.svm != dat$test[,1])
+```
+
+Confusion matrix for the test data:
+```{r}
+table(y.test.svm, dat$test[,1])
+```
+
+Function for plotting the digit data as an image:
+```{r}
+conv.image <- function(vec)
+{
+mat <- matrix(as.numeric(vec), nrow=16, ncol=16)
+mat <- -mat[, 16 : 1]
+par(mar=c(0, 0, 0, 0))
+image(mat, col=gray(seq(0, 1, 0.01)), xaxt='n', yaxt='n')
+}
+```
+
+One's that are misclassified as three's:
+```{r}
+one.as.three <- intersect(which(y.test.svm==3), which(dat$test[,1]==1))
+conv.image(dat$test[one.as.three[1], -1])
+
+for (i in 1:length(one.as.three)) {
+  pdf(paste0('one.as.three', i, '.pdf'))
+  conv.image(dat$test[one.as.three[i], -1])
+  dev.off()
+}
+```
+
+One's that are misclassified as five's:
+```{r}
+one.as.five <- intersect(which(y.test.svm==5), which(dat$test[,1]==1))
+conv.image(dat$test[one.as.five[1], -1])
+
+for (i in 1:length(one.as.five)) {
+  pdf(paste0('one.as.five', i, '.pdf'))
+  conv.image(dat$test[one.as.five[i], -1])
+  dev.off()
+}
+```
+
+Three's that are misclassified as five's:
+```{r}
+three.as.five <- intersect(which(y.test.svm==5), which(dat$test[,1]==3))
+conv.image(dat$test[three.as.five[1], -1])
+
+for (i in 1:length(three.as.five)) {
+  pdf(paste0('three.as.five', i, '.pdf'))
+  conv.image(dat$test[three.as.five[i], -1])
+  dev.off()
+}
+```
+
+Five's that are misclassified as three's:
+```{r}
+five.as.three <- intersect(which(y.test.svm==3), which(dat$test[,1]==5))
+conv.image(dat$test[five.as.three[1], -1])
+
+for (i in 1:length(five.as.three)) {
+  pdf(paste0('five.as.three', i, '.pdf'))
+  conv.image(dat$test[five.as.three[i], -1])
+  dev.off()
+}
+```
+
+### 4.4
+#### Radial basis kenerl
+```{r warning=FALSE}
+costs <- 10^(-2:2)
+gammas <- 10^(-5:5)
+for (cost in costs) {
+  for (gamma in gammas) {
+    predictor <- function(train, test) {
+      data.svm <- svm(V1 ~ ., data=train, cost=cost, gamma=gamma, scale=F)
+      predict(data.svm, test)
+    }
+    cv.error <- cv.5fold(dat$train, predictor)
+    cat("cost =", cost, ", gamma =", gamma, ", cv error =", cv.error, "\n")
+  }
+}
+```
+
+
+We find that `cost` = 4 - 128 and `gamma` = 0.0078125 is one combination of parameters that have (0.005903646).
+```{r warning=FALSE}
+costs <- 2^(-1:7)
+gammas <- 2^(-9:-4)
+for (cost in costs) {
+  for (gamma in gammas) {
+    predictor <- function(train, test) {
+      data.svm <- svm(V1 ~ ., data=train, cost=cost, gamma=gamma, scale=F)
+      predict(data.svm, test)
+    }
+    cv.errors <- sapply(1:10, function(i) cv.5fold(dat$train, predictor, seed=i))
+    cat("cost =", cost, ", gamma =", gamma, ", cv error =", mean(cv.errors), "\n")
+  }
+}
+```
+
+Check the 5-fold CV error:
+```{r}
+cv.error <- 0
+for (seed in 1:20) {
+  set.seed(seed)
+  ind <- sample(1:nrow(dat$train))
+  train.ind <- ind[c(1:as.integer(nrow(dat$train)*.8))]
+  data.svm <- svm(V1 ~ ., data=dat$train[train.ind,], cost=8, gamma=0.0078125, scale=F)
+  cv.error <- cv.error + mean(predict(data.svm, dat$train[-train.ind,]) != dat$train[-train.ind,1])
+}
+cv.error/20
+```
+#### Polynomial kernel
+`cost` is set to 8 as in the above RBF kernel case:
+```{r warning=FALSE}
+gammas <- 10^(-5:1)
+coef0s <- 10^(-5:5)
+degrees <- c(2, 3)
+for (gamma in gammas) {
+  for (coef0 in coef0s) {
+    for (degree in degrees) {
+      predictor <- function(train, test) {
+        data.svm <- svm(V1 ~ ., data=train, kernel="polynomial",
+                        cost=8, gamma=gamma, coef0=coef0, degree=degree, scale=F)
+        predict(data.svm, test)
+      }
+      cv.error <- cv.5fold(dat$train, predictor)
+      cat("gamma =", gamma, ", coef0 =", coef0, ", degree =", degree, ", cv error =", cv.error, "\n")
+    }
+  }
+}
+```
+
+We find that `cost` = 8 (preset), `gamma` = 0.125, `coef0` = 0.01 and `degree` = 3 is one combination of parameters that have the lowest CV error (0.005678116).
+```{r warning=FALSE}
+gammas <- 2^(-6:3)
+coef0s <- 10^(-4:0)
+degrees <- c(2, 3)
+for (gamma in gammas) {
+  for (coef0 in coef0s) {
+    for (degree in degrees) {
+      predictor <- function(train, test) {
+        data.svm <- svm(V1 ~ ., data=train, kernel="polynomial",
+                        cost=8, gamma=gamma, coef0=coef0, degree=degree, scale=F)
+        predict(data.svm, test)
+      }
+      cv.errors <- sapply(1:10, function(i) cv.5fold(dat$train, predictor, seed=i))
+      cat("gamma =", gamma, ", coef0 =", coef0, ", degree =", degree, ", cv error =", mean(cv.errors), "\n")
+    }
+  }
+}
+```
+
+Check the 5-fold CV error:
+```{r}
+cv.error <- 0
+for (seed in 1:20) {
+  set.seed(seed)
+  ind <- sample(1:nrow(dat$train))
+  train.ind <- ind[c(1:as.integer(nrow(dat$train)*.8))]
+  data.svm <- svm(V1 ~ ., data=dat$train[train.ind,], kernel="polynomial",
+                  cost=8, gamma=0.125, coef0=0.01, degree=3, scale=F)
+  cv.error <- cv.error + mean(predict(data.svm, dat$train[-train.ind,]) != dat$train[-train.ind,1])
+}
+cv.error/20
+```
+
+## Problem 5
+
+### 5.1
+
+Generate a dataset with 500 samples:
+```{r}
+set.seed(10)
+x1 <- runif(500) - 0.5
+x2 <- runif(500) - 0.5
+y <- ifelse(x1^2 - x2^2 > 0, 1, 0)
+dat <- data.frame(x1, x2, y)
+dat$y <- as.factor(dat$y)
+```
+
+Plot the sample points:
+```{r}
+ggplot(dat, aes(x=x1, y=x2, color=y)) + geom_point() + coord_fixed()
+```
+
+### 5.2
+
+Train the data with four classifiers:
+
+#### Linear SVM
+```{r}
+dat.svmLinear <- svm(y ~ x1+x2, data=dat, kernel="linear")
+dat$svmLinear <- predict(dat.svmLinear, dat)
+ggplot(dat, aes(x=x1, y=x2, color=svmLinear)) + geom_point() + coord_fixed()
+```
+
+#### Nonlinear SVM
+```{r}
+dat.svmRadial <- svm(y ~ x1+x2, data=dat)
+dat$svmRadial <- predict(dat.svmRadial, dat)
+ggplot(dat, aes(x=x1, y=x2, color=svmRadial)) + geom_point() + coord_fixed()
+```
+
+#### LDA using `x1` and `x2`
+```{r}
+library(MASS)
+dat.lda <- lda(y ~ x1+x2, data=dat)
+dat$lda <- predict(dat.lda, dat)$class
+ggplot(dat, aes(x=x1, y=x2, color=lda)) + geom_point() + coord_fixed()
+```
+
+#### LDA using `x1`, `x2` and their squares
+```{r}
+dat$x1sq <- dat$x1^2
+dat$x2sq <- dat$x2^2
+dat.ldaNonlinear <- lda(y ~ x1+x2+x1sq+x2sq, data=dat)
+dat$ldaNonlinear <- predict(dat.ldaNonlinear, dat)$class
+ggplot(dat, aes(x=x1, y=x2, color=ldaNonlinear)) + geom_point() + coord_fixed()
+```
+
+The decision boundary is nonlinear, so only SVM with nonlinear kernels and LDA with nonlinear transformations of freatures can accurately predict it.
