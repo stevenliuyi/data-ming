@@ -107,7 +107,7 @@ which(train.errors == min(train.errors))
 which(test.errors == min(test.errors))
 ```
 
-`k`=3 performs the best based on the CV error:
+`k`=4 performs the best based on the CV error:
 ```{r}
 which(cv.errors == min(cv.errors))
 ```
@@ -252,7 +252,7 @@ for (i in 1:length(five.as.three)) {
 ```
 
 ### 4.4
-#### Radial basis kenerl
+#### Radial basis kernel
 ```{r warning=FALSE}
 costs <- 10^(-2:2)
 gammas <- 10^(-5:5)
@@ -269,7 +269,7 @@ for (cost in costs) {
 ```
 
 
-We find that `cost` = 4 - 128 and `gamma` = 0.0078125 is one combination of parameters that have (0.005903646).
+We find that `cost` = 8 and `gamma` = 0.0078125 is one combination of parameters that have the lowest CV error (0.005903646).
 ```{r warning=FALSE}
 costs <- 2^(-1:7)
 gammas <- 2^(-9:-4)
