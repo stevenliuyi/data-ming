@@ -1,8 +1,8 @@
 ---
 title: "Homework 5"
 output:
-  html_document: default
   html_notebook: default
+  html_document: default
 ---
 
 ## Problem 1
@@ -36,8 +36,12 @@ Prune the tree with the best `cp`:
 best.cp <- 0.00247117
 dat.pruned <- prune(dat.tree, cp=best.cp)
 print(dat.pruned)
-plot(dat.pruned, main = "Pruned Classification Tree")
-text(dat.pruned)
+```
+
+Draw the tree:
+```{r}
+library(rpart.plot)
+prp(dat.pruned, roundint=F)
 ```
 
 ### 1.4
@@ -70,8 +74,7 @@ Train a classifcation tree and prune it using the best `cp` value obtained in Pr
 ```{r}
 dat.boot <- rpart(V1 ~ ., data=boot, method="class", control=rpart.control(cp=0.0001))
 dat.boot <- prune(dat.boot, cp=best.cp)
-plot(dat.boot, main = "Pruned Classification Tree")
-text(dat.boot)
+prp(dat.boot, roundint=F)
 ```
 
 Obviously, the tree is not the same as the tree obtained in Problem 1.
@@ -129,7 +132,7 @@ bagging.test.err(trees)
 
 ### 2.5
 
-Try baggin with different `t` values:
+Try bagging with different `t` values:
 
 ```{r}
 trees.tot <- generate.trees(40)
@@ -150,3 +153,78 @@ ggplot(data=data.frame(t.vals, test.errors), aes(t.vals, test.errors)) +
 ```
 
 We notice that larger `t` value does not always lead to better result.
+
+## Problem 3
+
+### 3.1
+Train a random forest and plot OOB error vs. number of trees:
+```{r}
+library(randomForest)
+set.seed(10)
+dat.rf <- randomForest(V1 ~ ., data=dat$train, ntree=5000)
+oob.errors <- dat.rf$err.rate[,1]
+ggplot(data=data.frame(n=1:5000, oob.errors), aes(n, oob.errors)) +
+  geom_line() + labs(x="trees", y="OOB error")
+```
+
+### 3.2
+
+Calculate the lowest OOB error and corresponding number of trees:
+```{r}
+print(min(oob.errors))
+which(oob.errors == min(oob.errors))
+```
+
+### 3.3
+
+Re-train the random forest using the optimum number of trees (511) obtained in Part 2:
+```{r}
+set.seed(10)
+dat.rf <- randomForest(V1 ~ ., data=dat$train, ntree=511)
+y.test.rf <- predict(dat.rf, dat$test, type="response")
+mean(y.test.rf != dat$test[,1])
+```
+
+## Problem 4
+
+### 4.1
+
+Use k-means clustering to cluster the training data with `k`=3, and report the number of samples in each cluster
+```{r}
+set.seed(10)
+dat.kmeans <- kmeans(dat$train[,-1], 3, nstart=20)
+dat.kmeans$size
+```
+
+### 4.2
+
+Plot the average image of each cluster:
+```{r}
+conv.image <- function(vec)
+{
+mat <- matrix(as.numeric(vec), nrow=16, ncol=16)
+mat <- -mat[, 16 : 1]
+par(mar=c(0, 0, 0, 0))
+image(mat, col=gray(seq(0, 1, 0.01)), xaxt='n', yaxt='n')
+}
+
+for (i in 1:3) conv.image(dat.kmeans$centers[i,])
+```
+
+### 4.3
+
+Use the gap statistic to find the best `k`:
+```{r warning=FALSE}
+library(cluster)
+set.seed(10)
+system.time(dat.kmeans <- clusGap(dat$train[,-1], FUNcluster=kmeans, nstart=20, K.max=10, B=50))
+```
+
+```{r}
+plot(dat.kmeans)
+```
+
+Using Tibshirani et al.'s "1-sd rule", the best `k` is 10:
+```{r}
+print(dat.kmeans, method="Tibs2001SEmax")
+```
