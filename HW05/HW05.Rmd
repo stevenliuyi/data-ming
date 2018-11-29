@@ -1,8 +1,8 @@
 ---
 title: "Homework 5"
 output:
-  html_notebook: default
   html_document: default
+  html_notebook: default
 ---
 
 ## Problem 1
@@ -227,4 +227,47 @@ plot(dat.kmeans)
 Using Tibshirani et al.'s "1-sd rule", the best `k` is 10:
 ```{r}
 print(dat.kmeans, method="Tibs2001SEmax")
+```
+
+## Problem 5
+
+### 5.1
+
+Apply hierarchical clustering with the single linkage:
+```{r}
+dat.dist <- dist(dat$train[,-1], method="euclidean")
+dat.hc.single <- cutree(hclust(dat.dist, method="single"), 3)
+table(dat.hc.single)
+```
+
+Apply hierarchical clustering with the complete linkage:
+```{r}
+dat.hc.complete <- cutree(hclust(dat.dist, method="complete"), 3)
+table(dat.hc.complete)
+```
+
+Apply hierarchical clustering with the group average linkage:
+```{r}
+dat.hc.average <- cutree(hclust(dat.dist, method="average"), 3)
+table(dat.hc.average)
+```
+
+### 5.2
+
+Representative images for each cluster with the single linkage:
+```{r}
+mean.images <- function(clusters) {
+  for (i in 1:3) conv.image(colMeans(as.matrix(dat$train[clusters==i,-1])))
+}
+mean.images(dat.hc.single)
+```
+
+Representative images for each cluster with the complete linkage:
+```{r}
+mean.images(dat.hc.complete)
+```
+
+Representative images for each cluster with the group average linkage:
+```{r}
+mean.images(dat.hc.average)
 ```
